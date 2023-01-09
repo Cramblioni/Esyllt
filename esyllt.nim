@@ -1,5 +1,6 @@
 import termios, posix, tables
 import terminal, os, unicode
+import strformat
 
 var origTermios: Termios
 var curTermios: Termios
@@ -275,7 +276,7 @@ type
   ByfferTerfynell* = ref ByfferTerfynellObj
 
 # buffer creation functions
-func byfferNewydd*(lled, uchder: Natural): ByfferTerfynell =
+func byfferNewidd*(lled, uchder: Natural): ByfferTerfynell =
   const blank = RuneTerfynell(
     symbol: ' '.Rune,
     bg: bgDefault, fg: fgDefault,
@@ -291,14 +292,22 @@ func byfferNewydd*(lled, uchder: Natural): ByfferTerfynell =
 func lled*(byff: ByfferTerfynell): Natural = byff.tlled
 func uchder*(byff: ByfferTerfynell): Natural = byff.tuchder
 
-func `[]`*(byff: ByfferTerfynell; x, y: Natural): RuneTerfynell =
-  if 0 > x or x > byff.tlled:
+
+func `[]`*(byff: ByfferTerfynell; x, y: int): RuneTerfynell =
+  if 0 > x or x >= byff.tlled:
     return
-  if 0 > y or y > byff.tuchder:
+  if 0 > y or y >= byff.tuchder:
     return
   byff.celloedd[x + y * byff.tlled]
 
-func `[]=`*(byff: var ByfferTerfynell; x,y: Natural; rune: RuneTerfynell) =
+func `[]`*(byff: var ByfferTerfynell; x, y: int): var RuneTerfynell =
+  if 0 > x or x >= byff.tlled:
+    return
+  if 0 > y or y >= byff.tuchder:
+    return
+  byff.celloedd[x + y * byff.tlled]
+
+func `[]=`*(byff: var ByfferTerfynell; x,y: int; rune: RuneTerfynell) =
   ## noop if (x, y) out of bounds
   if 0 > x or x >= byff.tlled:
     return
@@ -306,7 +315,7 @@ func `[]=`*(byff: var ByfferTerfynell; x,y: Natural; rune: RuneTerfynell) =
     return
   byff.celloedd[x + y * byff.tlled] = rune
 
-func `[]=`*(byff: var ByfferTerfynell; x, y: Natural, rune: Rune) =
+func `[]=`*(byff: var ByfferTerfynell; x, y: int, rune: Rune) =
   ## noop if (x, y) out of bounds
   if 0 > x or x >= byff.tlled:
     return
@@ -329,9 +338,17 @@ func llenwy*(byff: var ByfferTerfynell, rune: RuneTerfynell) =
   for i in 0 ..< byff.tlled * byff.tuchder:
     byff.celloedd[i] = rune
 
+func clôn*(byff: ByfferTerfynell; x, y, ll, u: Natural): ByfferTerfynell =
+  result = byfferNewidd(ll, u)
+  for yc in 0 ..< u:
+    for xc in 0 ..< ll:
+      result[xc, yc] = byff[x + xc, y + yc]
+
 proc darparu*(byff: ByfferTerfynell, file: File) =
   file.setCursorPos(0, 0)
-  var cur : RuneTerfynell
+  var cur : RuneTerfynell = byff.celloedd[0]
+  file.resetAttributes()
+  file.write (cur.rendroBg & cur.rendroFg)
   for y in 0 ..< byff.tuchder:
     let yoff = y * byff.tlled
     file.setCursorPos(0, y)
@@ -339,9 +356,9 @@ proc darparu*(byff: ByfferTerfynell, file: File) =
       let ap = byff.celloedd[yoff + x]
       if not (ap ~~ cur):
         file.resetAttributes()
-        if cur.bg != ap.bg: file.write ap.rendroBg
-        if cur.fg != ap.fg: file.write ap.rendroFg
-        if cur.style != ap.style: file.write ap.rendroStyle
+        file.write ap.rendroBg
+        file.write ap.rendroFg
+        file.write ap.rendroStyle
         cur = ap
       file.write $ap.symbol
     file.flushFile()
@@ -362,7 +379,43 @@ func chwydu*(cyrch: var ByfferTerfynell, ffyn: ByfferTerfynell; f, c: Pwynt) =
 
 func `[]`*(byff: ByfferTerfynell; p: Pwynt): RuneTerfynell =
   byff[p.x.iNat, p.y.iNat]
+func `[]`*(byff: var ByfferTerfynell; p: Pwynt): RuneTerfynell =
+  byff[p.x.iNat, p.y.iNat]
 func `[]=`*(byff: var ByfferTerfynell; p: Pwynt; rune: RuneTerfynell) =
   byff[p.x.iNat, p.y.iNat] = rune
 func `[]=`*(byff: var ByfferTerfynell; p: Pwynt, rune: Rune) =
   byff[p.x.iNat, p.y.iNat] = rune
+
+
+func clôn*(byff: ByfferTerfynell, p: Pwynt; ll, u: Natural): ByfferTerfynell =
+  clôn(byff, p.x.iNat, p.y.iNat, ll, u)
+func clôn*(byff: ByfferTerfynell; p, m: Pwynt): ByfferTerfynell =
+  clôn(byff, p.x.iNat, p.y.iNat, m.x.iNat, m.y.iNat)
+
+# Achos unicode
+type Tecst* = distinct seq[Rune]
+func tecstNewidd*(): Tecst = Tecst(newSeq[Rune](0))
+func tecstNewiddOCap*(capasiti: Natural): Tecst = Tecst(newSeqOfCap[Rune](capasiti))
+func hyd*(tecst: Tecst): int = seq[Rune](tecst).len
+func `[]`*(tecst: Tecst, i: Natural | BackwardsIndex): lent Rune =
+  seq[Rune](tecst)[i]
+func `[]`*(tecst: var Tecst, i: Natural | BackwardsIndex): var Rune =
+  seq[Rune](tecst)[i]
+
+func add*(tecst: var Tecst, v: Rune) = seq[Rune](tecst).add v
+func adio*(tecst: var Tecst, v: Rune) = seq[Rune](tecst).add v
+func `&`*(a, b: Tecst): Tecst = Tecst(seq[Rune](a) & seq[Rune](b))
+func `&=`*(a: var Tecst, b: Tecst) =
+  for x in seq[Rune](b): seq[Rune](a).add x
+func mewnosod*(tecst: var Tecst, r: Rune, ind: Natural) =
+  seq[Rune](tecst).insert(r, ind)
+func dileu*(tecst: var Tecst, ind: Natural) = seq[Rune](tecst).delete ind
+
+func `@`*(t: string): Tecst = Tecst(t.toRunes)
+func `@`*(t: char): Rune = t.Rune
+func `$`*(t: Tecst): string = $seq[Rune](t)
+
+iterator items*(t: Tecst): Rune =
+  for x in seq[Rune](t): yield x
+iterator pairs*(t: Tecst): tuple[ind: int, rune: Rune] =
+  for i, x in seq[Rune](t): yield (i, x)
