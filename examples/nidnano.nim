@@ -78,45 +78,54 @@ template mewnLwp(côd: untyped) =
     let rune {. inject, used .} = r
     côd
 
+func rendroYnFfenstr(bwrdd:  dechray: Pwynt, tecst: Tecst; gwth, lled: Natural) =
+  let lledTecst = min(lled, tecst.hyd - gwth)
+  let lledGwag  = lled - lledTecst
+
 template estynTecst(anogwr: Tecst, cynateb = @""): Tecst =
   mixin bwrdd, cynllun
-  let cChU = Pwynt(x: 0, y: cynllun.uchder)
-  let cDI  = Pwynt(x: bwrdd.lled, y: bwrdd.uchder)
-  let côf = bwrdd.clôn(cChU, cDI - cChU)
-  block:
-    let ll = cynllun.lled - anogwr.hyd
-    let x  = anogwr.hyd
-    var byffAteb = tecstNewiddOCap(ll)
-    byffAteb &= cynateb
-    for dx, r in anogwr:
-      bwrdd[dx, cynllun.uchder] = r
-    var xca = cynateb.hyd
-    mewnLwp:
-      setCursorPos(x + xca, cynllun.uchder)
-      stdout.flushFile()
-      case nod
-      of Nod.Backspace:
-       byffAteb.dileu(xca - 1)
-       dec xca
-      of Nod.Left:
-        if xca > 0: dec xca
-      of Nod.Right:
-        if xca <  byffAteb.hyd: inc xca
-      of Nod.Enter:
-        break
-      else:
-        if nod == Nod.Unicode or rune != 0.Rune:
-          byffAteb.mewnosod(rune, xca)
-          inc xca
+  let manDestun = Pwynt(x: 0, y: cynllun.uchder)
+  var tecst = tecstNewidd()
+  var cyrchwr = 0
+  let lledFfenestr = bwrdd.lled - anogwr.hyd
+  var gwthFfenestr = 0 
+  # chwydu anogwr arno'r destun
+  for i, r in anogwr:
+    bwrdd[i, manDestun.y] = r
 
-      for dx, r in byffAteb:
-        bwrdd[x + dx, cynllun.uchder] = r
-      for px in byffAteb.hyd + x ..< cynllun.lled:
-        bwrdd[px, cynllun.uchder] = @' '
-      sleep PARHAD
-    bwrdd.chwydu(côf, cChU, cDI)
-    bwrdd.chwydu(côf, Pwynt(x: 0, y: 0), cDI)
-    byffAteb
+  mewnLwp:
+    var newid = false
+    setCursorPos(cyrchwr + anogwr.hyd, manDestun.y)
+    showCursor()
+    case nod
+    of Nod.Enter:
+      break
+    of Nod.Left:
+      if cyrchwr > 0: dec cyrchwr
+    of Nod.Right:
+      if cyrchwr < tecst.hyd: inc cyrchwr
+    of Nod.Backspace:
+      if cyrchwr > 0: tecst.dileu(cyrchwr - 1)
+      newid = true
+    of Nod.Delete:
+      newid = true
+      if cyrchwr < tecst.hyd: tecst.dileu(cyrchwr)
+    else:
+      if nod == Nod.Unicode or rune != 0.Rune:
+        tecst.mewnosod rune, cyrchwr
+        inc cyrchwr
+        newid = true
+      else:
+        sleep PARHAD
+    if newid:
+      for i in 0 ..< tecst.hyd:
+        bwrdd[i + anogwr.hyd, manDestun.y] = tecst[i.Natural]
+        continue
+      for i in tecst.hyd ..< bwrdd.lled: bwrdd[i + anogwr.hyd, manDestun.y] = @' '
+  # gwagio'r destun
+  for x in 0 ..< bwrdd.lled:
+    bwrdd[x, manDestun.y] = @' '
+  tecst
 
 proc darllenFfeil(destyn: var seq[Tecst], llwybr: Tecst, llinell: Natural) =
   let path = $llwybr
