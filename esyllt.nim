@@ -356,9 +356,9 @@ proc darparu*(byff: ByfferTerfynell, file: File) =
       let ap = byff.celloedd[yoff + x]
       if not (ap ~~ cur):
         file.resetAttributes()
-        file.write ap.rendroBg
-        file.write ap.rendroFg
-        file.write ap.rendroStyle
+        if ap.bg != cur.bg: file.write ap.rendroBg
+        if ap.fg != cur.fg:  file.write ap.rendroFg
+        if ap.style != cur.style: file.write ap.rendroStyle
         cur = ap
       file.write $ap.symbol
     file.flushFile()

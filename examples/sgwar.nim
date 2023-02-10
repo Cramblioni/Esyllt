@@ -1,4 +1,4 @@
-import ./esyllt
+import ../esyllt
 
 import std/[terminal, unicode, os]
 
@@ -12,7 +12,7 @@ let
   y = (u  shr 1) - (us  shr 1)
 
 
-var byff = byfferNewydd(ll, u)
+var byff = byfferNewidd(ll, u)
 for i, r in "G: Gadael".toRunes:
   byff[i, 0] = r
 
