@@ -269,10 +269,18 @@ func rendroStyle*(x: RuneTerfynell): string =
 func `~~`*(a, b: RuneTerfynell): bool = # similar operator
   (a.fg == b.fg) and (a.bg == b.bg) and (a.style == b.style) and (a.bright and b.bright)
 
+type Pwynt* = object
+  x*, y*: int
+
 type
+  Bloc = object
+    ccu, cdi: Pwynt
+
   ByfferTerfynellObj = object
     tlled, tuchder: Natural
     celloedd: seq[RuneTerfynell]
+    blociau: seq[Bloc]
+
   ByfferTerfynell* = ref ByfferTerfynellObj
 
 # buffer creation functions
@@ -292,6 +300,29 @@ func byfferNewidd*(lled, uchder: Natural): ByfferTerfynell =
 func lled*(byff: ByfferTerfynell): Natural = byff.tlled
 func uchder*(byff: ByfferTerfynell): Natural = byff.tuchder
 
+func arffin(pwynt: Pwynt, bloc: Bloc): bool =
+  `and`(pwynt.x >= bloc.ccu.x and pwynt.y >= bloc.ccu.y,
+        pwynt.x <= bloc.cdi.x and pwynt.y <= bloc.cdi.y)
+
+func arOchr(pwynt: Pwynt, bloc: Bloc): bool =
+  `or`(pwynt.x == bloc.ccu.x - 1 or pwynt.y == bloc.ccu.y - 1,
+       pwynt.x == bloc.cdi.x + 1 or pwynt.y == bloc.cdi.y + 1)
+
+func mewnarffinPwynt(byff: var ByfferTerfynell, pwynt: Pwynt) =
+  for bloc in byff.blociau.mitems:
+    if pwynt.arffin(bloc): return
+    if pwynt.arOchr(bloc):
+      let
+        ccun = Pwynt(x: min(bloc.ccu.x, pwynt.x), y: min(bloc.ccu.y, pwynt.y))
+        cdin = Pwynt(x: max(bloc.cdi.x, pwynt.x), y: max(bloc.cdi.y, pwynt.y))
+      bloc.ccu = ccun
+      bloc.cdi = cdin
+  byff.blociau.add Bloc(ccu: pwynt, cdi: pwynt)
+
+iterator rastr(bloc: Bloc): tuple[uchder: int, lled: int] =
+  let lled = (bloc.cdi.x - bloc.ccu.x) + 1
+  for y in bloc.ccu.y .. bloc.cdi.y:
+    yield (y, lled)
 
 func `[]`*(byff: ByfferTerfynell; x, y: int): RuneTerfynell =
   if 0 > x or x >= byff.tlled:
@@ -364,8 +395,6 @@ proc darparu*(byff: ByfferTerfynell, file: File) =
     file.flushFile()
 
 
-type Pwynt* = object
-  x*, y*: int
 #converter toPoint(p: tuple[x, y: int]): Pwynt = Pwynt(x: p[0], y: p[1])
 
 func iNat(x: int): Natural {. inline .} = (if x < 0: 0 else: x)
